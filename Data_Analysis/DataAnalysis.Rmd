@@ -1,0 +1,145 @@
+---
+title: "DataAnalysis"
+author: "Gauthaman Sethupathy"
+date: "2024-04-29"
+output: html_document
+---
+```{r}
+library(ggplot2)
+library(randomForest)
+```
+
+
+
+```{r}
+df <- read.csv("Finalp3.csv")
+df <- na.omit(df)
+head(df)
+```
+total_accepted, total_submissions, difficulty.level, ProblemDescription, num_likes, Python_Solutions, Correct
+
+
+Spliting the data into difficulty levels:
+```{r}
+easy <- df[df$difficulty.level == 1, ]
+medium <- df[df$difficulty.level == 2, ]
+hard <- df[df$difficulty.level == 3, ]
+```
+
+```{r}
+num_correct_easy <- sum(easy$Correct)
+num_correct_medium <- sum(medium$Correct)
+num_correct_hard <- sum(hard$Correct)
+```
+
+```{r}
+accuracy_easy <- num_correct_easy/nrow(easy)
+accuracy_medium <- num_correct_medium/nrow(medium)
+accuracy_hard <- num_correct_hard/nrow(hard)
+```
+
+```{r}
+total <- data.frame(Difficulty= c("Easy", "Medium", "Hard"),
+                 Correct= c(num_correct_easy, num_correct_medium, num_correct_hard))
+
+accuracy <- data.frame(Difficulty= c("Easy", "Medium", "Hard"),
+                 accuracy2= c(accuracy_easy, accuracy_medium, accuracy_hard))
+
+```
+
+```{r}
+ggplot(total, aes(x=Difficulty, y=Correct, fill=Difficulty)) +
+  geom_bar(stat="identity")+labs(title="Total Correct per Difficulty",x="Difficulty Level", y = "Total Number Correct")+theme_minimal()
+```
+
+```{r}
+ggplot(accuracy, aes(x=Difficulty, y=accuracy2, fill=Difficulty)) +
+  geom_bar(stat="identity")+labs(title="Accuracy Percentange per Difficulty",x="Difficulty Level", y = "Percent Accura")+theme_minimal()
+```
+```{r}
+total
+```
+
+```{r}
+accuracy
+```
+
+```{r}
+ra <- data.frame(Difficulty= df$difficulty.level,
+                 Runtime= df$Runtime, num = df$stat.question_id, df$Correct, df$ncPD, df$ncPS)
+```
+
+```{r}
+ra$Runtime <- as.factor(ra$Runtime)
+ra<- ra[!grepl('#VALUE!', ra$Runtime),]
+head(ra)
+```
+
+```{r}
+ggplot(ra, aes(x = num, y = log(as.numeric(Runtime)))) +
+        geom_point(aes(color = factor(Difficulty)))+ labs(title="Scatterplot of log Runtimes for Each Question",x="Question Number(ID)", y = "Runtime", fill = "Difficulty Level")
+```
+
+```{r}
+tempe <- ra[ra$diff == 1, ]
+tempm <- ra[ra$diff == 2, ]
+temph <- ra[ra$diff == 3, ]
+
+tempe
+
+x<- as.numeric(tempe$Runtime)
+mean(x)
+
+m <- as.numeric(tempm$Runtime)
+mean(m)
+
+h <- as.numeric(temph$Runtime)
+mean(h)
+```
+
+
+```{r}
+df$ncPD <- nchar(df$ProblemDescription)
+df$ncPS <- nchar(df$Python_Solutions)
+head(df)
+lm1 <- lm(formula=Correct ~ .,  data = df)
+summary(lm1)
+```
+
+```{r}
+set.seed(4543)
+df$Correct <- as.factor(df$Correct)
+rf.fit <- randomForest(Correct ~  total_accepted + total_submissions + difficulty.level + ncPD + num_likes + ncPS + stat.question_id,  data=df, ntree=1000,
+                       keep.forest=FALSE, importance=TRUE, na.action=na.exclude)
+rf.fit
+```
+
+```{r}
+ImpData <- as.data.frame(importance(rf.fit))
+ImpData$Var.Names <- row.names(ImpData)
+
+colnames(ImpData)[1] <- "Increase.MSE.by.Percent"
+ImpData
+
+ggplot(ImpData, aes(x=Var.Names, y=Increase.MSE.by.Percent)) +
+  geom_segment( aes(x=Var.Names, xend=Var.Names, y=0, yend=Increase.MSE.by.Percent), color="skyblue") +
+  geom_point(color="blue", alpha=0.6) +
+  theme_light() +
+  coord_flip() +
+  theme(
+    legend.position="bottom",
+    panel.grid.major.y = element_blank(),
+    panel.border = element_blank(),
+    axis.ticks.y = element_blank()
+  )+
+  labs(title = "Visualize Variable Importance", x = "Variable Name", y = "Percent Increase in MSE")
+```
+
+
+
+
+
+
+
+
+
